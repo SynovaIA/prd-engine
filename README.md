@@ -248,7 +248,7 @@ For licensing inquiries and enterprise agreements, please contact:
 ## Contact
 
 **SynovaIA Engineering**  
-Website: www.synovia.ai  
-Email: enterprise@synovia.ai
+Website: www.synovia.site  
+
 
 *Built for mission-critical operations. Engineered for enterprise success.*
