@@ -1,34 +1,37 @@
-# PRD Engine Architecture Specification
+# Architecture Overview
 
-**Document Classification:** Internal Engineering  
+**Document Classification:** Public  
 **Version:** 1.0.0  
-**Last Updated:** 2024-01-15  
-**Owner:** Platform Architecture Team
+**Last Updated:** 2024-01-15
 
 ---
 
-## 1. System Overview
+## Executive Summary
 
-PRD Engine operates as a multi-tier operational AI execution framework designed for enterprise-scale requirement transformation pipelines. The architecture follows a layered approach with strict separation of concerns, enabling horizontal scalability and fault isolation.
+SynovaIA PRD Engine employs a multi-tier architecture designed for enterprise-scale requirement transformation. This document provides a high-level overview of the system design principles and architectural patterns.
 
-### 1.1 Architectural Principles
+---
 
-- **Deterministic Execution**: All workflows produce reproducible outcomes given identical inputs
-- **Graceful Degradation**: Component failures trigger circuit breakers without cascading
-- **Observability First**: Every operation emits structured telemetry by default
-- **Zero Trust Security**: All inter-service communication requires mutual authentication
+## Design Principles
+
+Our architecture is guided by the following principles:
+
+- **Deterministic Execution**: Workflows produce reproducible outcomes given identical inputs
+- **Graceful Degradation**: Component failures are isolated without cascading impact
+- **Observability First**: All operations emit structured telemetry
+- **Zero Trust Security**: Inter-service communication requires authentication
 - **Stateless Compute**: Processing nodes maintain no persistent state
 
 ---
 
-## 2. Logical Architecture
+## Logical Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     PRESENTATION LAYER                           │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │   Web UI    │  │   CLI       │  │   API       │              │
-│  │  (React)    │  │  (Python)   │  │  Gateway    │              │
+│  │             │  │             │  │  Gateway    │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -36,7 +39,7 @@ PRD Engine operates as a multi-tier operational AI execution framework designed 
 ┌─────────────────────────────────────────────────────────────────┐
 │                     ORCHESTRATION LAYER                          │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │              Workflow Engine (Temporal/n8n)             │    │
+│  │              Workflow Engine                            │    │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │    │
 │  │  │  Queue   │  │ Scheduler│  │Executor  │              │    │
 │  │  └──────────┘  └──────────┘  └──────────┘              │    │
@@ -48,12 +51,10 @@ PRD Engine operates as a multi-tier operational AI execution framework designed 
 │                     INFERENCE LAYER                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │   Router    │  │  Prompt     │  │  Response   │              │
-│  │  (Model     │  │  Builder    │  │  Validator  │              │
-│  │   Select)   │  │             │  │             │              │
+│  │             │  │  Builder    │  │  Validator  │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │           AI Provider Abstraction Layer                  │    │
-│  │   Gemini │ Claude │ OpenAI │ Custom Models              │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -70,288 +71,171 @@ PRD Engine operates as a multi-tier operational AI execution framework designed 
 ┌─────────────────────────────────────────────────────────────────┐
 │                     DATA LAYER                                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │ PostgreSQL  │  │   Redis     │  │   S3        │              │
-│  │ (State)     │  │  (Cache)    │  │ (Artifacts) │              │
+│  │ PostgreSQL  │  │   Redis     │  │   Object    │              │
+│  │ (State)     │  │  (Cache)    │  │  Storage    │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Component Specifications
+## Component Overview
 
-### 3.1 Orchestration Control Plane
+### Orchestration Control Plane
 
 **Purpose**: Centralized workflow coordination and task distribution
 
-| Component | Technology | Responsibility |
-|-----------|------------|----------------|
-| Workflow Engine | Temporal.io | Stateful workflow orchestration with durability guarantees |
-| Task Queue | Redis Streams | High-throughput message buffering with backpressure |
-| Scheduler | Cron + Priority Queue | Time-based and priority-driven task activation |
-| Executor | FastAPI Workers | Stateless task processing with auto-scaling |
+The orchestration layer manages workflow execution with durability guarantees, supporting retry mechanisms and priority-based task scheduling.
 
-**Key Behaviors**:
-- Workflows persist state after each step for crash recovery
-- Tasks support retry with exponential backoff (max 5 attempts)
-- Priority queues ensure SLA-critical tasks bypass lower-priority work
-- Circuit breakers isolate failing downstream services
+**Key Characteristics**:
+- Persistent workflow state for crash recovery
+- Retry with exponential backoff
+- Priority queues for SLA-critical tasks
+- Circuit breakers for downstream service isolation
 
-### 3.2 AI Inference Layer
+### AI Inference Layer
 
-**Purpose**: Multi-provider LLM abstraction with intelligent routing
+**Purpose**: Multi-provider AI abstraction with intelligent routing
 
-| Component | Technology | Responsibility |
-|-----------|------------|----------------|
-| Model Router | Custom Python | Dynamic provider selection based on task type and cost |
-| Prompt Builder | Jinja2 Templates | Context-aware prompt construction with variable injection |
-| Token Manager | Redis Counters | Budget tracking and quota enforcement per tenant |
-| Response Validator | Pydantic Schemas | Output structure verification before pipeline progression |
+The inference layer abstracts multiple AI providers, enabling dynamic selection based on task requirements.
 
-**Routing Strategy**:
-```
-Task Complexity → Model Selection
-├── Simple (classification, extraction) → Gemini Pro
-├── Medium (analysis, transformation) → Claude Sonnet
-├── Complex (architecture, reasoning) → Claude Opus / GPT-4
-└── Specialized (code, math) → Provider-specific models
-```
+**Key Characteristics**:
+- Dynamic provider selection based on task type
+- Context-aware prompt construction
+- Budget tracking and quota enforcement
+- Output structure verification
 
-### 3.3 Validation Pipeline
+### Validation Pipeline
 
 **Purpose**: Multi-stage quality gates ensuring output integrity
 
-| Stage | Validation Type | Failure Action |
-|-------|-----------------|----------------|
-| 1 | Schema Conformance | Reject and log |
-| 2 | Logical Consistency | Flag for review |
-| 3 | Compliance Check | Block and alert |
-| 4 | Integration Contract | Retry with修正 |
+The validation layer applies comprehensive checks before allowing pipeline progression.
 
-**Validation Rules Engine**:
-- JSON Schema validation for all structured outputs
-- Rule-based logic checking for requirement contradictions
-- Policy-as-code (OPA) for compliance verification
-- Contract testing for API compatibility
+**Validation Stages**:
+1. Schema Conformance - Structure validation
+2. Logical Consistency - Requirement contradiction detection
+3. Compliance Check - Regulatory alignment
+4. Integration Contract - API compatibility
 
-### 3.4 Backend Services
+### Backend Services
 
 **Purpose**: Persistent state management and external integrations
 
-| Service | Stack | Scaling Strategy |
-|---------|-------|------------------|
-| API Gateway | FastAPI + Traefik | Horizontal pod autoscaling |
-| State Store | PostgreSQL 15 | Read replicas + connection pooling |
-| Cache Layer | Redis 7 Cluster | Sharded by tenant ID |
-| Artifact Store | MinIO / S3 | Lifecycle policies + versioning |
+**Core Services**:
+- API Gateway - REST and GraphQL interfaces
+- State Store - Transactional data persistence
+- Cache Layer - Performance optimization
+- Artifact Store - Versioned file management
 
 ---
 
-## 4. Data Flow
+## Scalability Approach
 
-### 4.1 Requirements Intake Flow
-
-```
-1. User submits PRD via UI/API
-         │
-2. Gateway authenticates and validates request
-         │
-3. Orchestrator creates workflow instance
-         │
-4. Inference Layer performs initial structuring
-         │
-5. Validation Layer checks schema conformance
-         │
-6. State persisted to PostgreSQL
-         │
-7. Acknowledgment sent to user with tracking ID
-```
-
-### 4.2 Architecture Analysis Flow
-
-```
-1. Workflow triggers analysis task
-         │
-2. Prompt Builder constructs context from PRD
-         │
-3. Model Router selects appropriate LLM
-         │
-4. Inference executed with timeout guardrails
-         │
-5. Response Validator checks output structure
-         │
-6. Validation Layer runs logic checks
-         │
-7. Results stored and indexed
-         │
-8. Next workflow stage activated
-```
-
-### 4.3 Deployment Pipeline Flow
-
-```
-1. Blueprint approved for deployment
-         │
-2. Terraform generates infrastructure plan
-         │
-3. Security scan validates IaC against policies
-         │
-4. Helm chart rendered with environment values
-         │
-5. Kubernetes applies manifests (canary)
-         │
-6. Observability stack configures dashboards
-         │
-7. Smoke tests validate deployment
-         │
-8. Traffic shifted to new version
-```
-
----
-
-## 5. Scalability Considerations
-
-### 5.1 Horizontal Scaling
+### Horizontal Scaling
 
 - **Stateless Workers**: Any worker can process any task
-- **Database Sharding**: Tenant data partitioned by organization ID
-- **Redis Clustering**: Hash slots distribute cache load
-- **Kubernetes HPA**: CPU/memory-based pod scaling
+- **Database Sharding**: Data partitioned by organization
+- **Cache Clustering**: Distributed cache architecture
+- **Container Autoscaling**: Resource-based pod scaling
 
-### 5.2 Performance Targets
+### Performance Targets
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| API p99 Latency | <200ms | Prometheus histogram |
-| Inference Throughput | >1000 req/s | Custom exporter |
-| Workflow Completion | <30s avg | Temporal metrics |
-| Cache Hit Rate | >90% | Redis INFO stats |
-
-### 5.3 Bottleneck Mitigation
-
-- **LLM Rate Limits**: Request queuing with token bucket algorithm
-- **Database Contention**: Read replicas for analytics queries
-- **Network I/O**: Connection pooling and keepalive
-- **Memory Pressure**: Streaming responses for large outputs
+| Metric | Target |
+|--------|--------|
+| API p99 Latency | <200ms |
+| Workflow Completion | <30s avg |
+| Cache Hit Rate | >90% |
 
 ---
 
-## 6. Failure Modes
+## Reliability Patterns
 
-### 6.1 Component Failures
+### Failure Recovery
 
-| Component | Failure Mode | Recovery Strategy |
-|-----------|--------------|-------------------|
-| Workflow Engine | Pod crash | State replay from event log |
-| Database | Primary failure | Automatic failover to replica |
-| Redis | Node loss | Cluster reconfiguration |
-| LLM Provider | API outage | Fallback to alternate provider |
+| Component | Recovery Strategy |
+|-----------|-------------------|
+| Workflow Engine | State replay from event log |
+| Database | Automatic failover to replica |
+| Cache | Cluster reconfiguration |
+| AI Provider | Fallback to alternate provider |
 
-### 6.2 Cascade Prevention
+### Cascade Prevention
 
 - **Bulkheads**: Resource isolation per tenant
-- **Timeouts**: All external calls have deadline enforcement
-- **Circuit Breakers**: Open after 5 consecutive failures
+- **Timeouts**: External call deadline enforcement
+- **Circuit Breakers**: Automatic isolation after failures
 - **Rate Limiting**: Per-tenant and global throttling
 
 ---
 
-## 7. Security Architecture
+## Security Architecture
 
-### 7.1 Authentication Flow
+### Authentication Flow
 
 ```
-User → OAuth2/OIDC Provider → JWT Token → API Gateway → RBAC Check → Service
+User → Identity Provider → Token → API Gateway → Authorization → Service
 ```
 
-### 7.2 Data Protection
+### Data Protection
 
-| Data State | Protection Mechanism |
-|------------|---------------------|
-| At Rest | AES-256 encryption (PostgreSQL TDE, S3 SSE) |
+| Data State | Protection |
+|------------|------------|
+| At Rest | AES-256 encryption |
 | In Transit | TLS 1.3 with mutual authentication |
-| In Use | Memory encryption for sensitive fields |
+| In Use | Application-layer encryption for sensitive fields |
 
-### 7.3 Access Control
+### Access Control
 
 - **RBAC**: Role-based permissions with inheritance
 - **ABAC**: Attribute-based policies for fine-grained access
-- **Audit Logging**: All access decisions logged immutably
+- **Audit Logging**: All access decisions logged
 
 ---
 
-## 8. Observability Design
+## Observability Design
 
-### 8.1 Telemetry Stack
+### Telemetry Collection
 
-| Signal | Tool | Retention |
-|--------|------|-----------|
-| Metrics | Prometheus + Thanos | 90 days |
-| Logs | Loki + FluentBit | 30 days |
-| Traces | Jaeger | 7 days |
-| Alerts | Alertmanager + PagerDuty | Indefinite |
+| Signal | Purpose |
+|--------|---------|
+| Metrics | Performance monitoring and alerting |
+| Logs | Diagnostic information with context |
+| Traces | End-to-end request flow visibility |
+| Alerts | Proactive incident notification |
 
-### 8.2 Key Dashboards
+### Key Dashboards
 
-- **System Health**: CPU, memory, disk, network per service
-- **Workflow Status**: Active, completed, failed workflows over time
-- **Inference Metrics**: Token usage, latency, error rates by provider
-- **Business KPIs**: PRDs processed, validation pass rate, deployment frequency
-
-### 8.3 Alerting Rules
-
-| Condition | Severity | Action |
-|-----------|----------|--------|
-| Error rate >5% | Critical | Page on-call |
-| p99 latency >500ms | Warning | Slack notification |
-| Disk usage >80% | Warning | Slack notification |
-| Workflow failure spike | Critical | Page on-call |
+- **System Health**: Resource utilization per service
+- **Workflow Status**: Active, completed, failed workflows
+- **Inference Metrics**: Usage and error rates by provider
+- **Business KPIs**: Throughput and quality metrics
 
 ---
 
-## 9. Deployment Topology
+## Deployment Topology
 
-### 9.1 Production Environment
+### Production Environment
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                    │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │               Production Namespace                 │  │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐           │  │
-│  │  │  API    │  │Worker   │  │ Worker  │           │  │
-│  │  │ Pods    │  │ Pods    │  │ Pods    │           │  │
-│  │  │ (x3)    │  │ (x5)    │  │ (x5)    │           │  │
-│  │  └─────────┘  └─────────┘  └─────────┘           │  │
-│  │                                                   │  │
-│  │  ┌─────────────────────────────────────────────┐  │  │
-│  │  │            StatefulSet                       │  │  │
-│  │  │  PostgreSQL Primary + 2 Replicas             │  │  │
-│  │  │  Redis Cluster (6 nodes)                     │  │  │
-│  │  └─────────────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                          │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │            Observability Namespace                 │  │
-│  │  Prometheus │ Grafana │ Jaeger │ Loki             │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+The platform deploys to Kubernetes with the following namespace structure:
 
-### 9.2 Network Segmentation
+- **Production Namespace**: Application services
+- **Data Namespace**: Stateful services (databases, caches)
+- **Observability Namespace**: Monitoring and logging stack
 
-- **Public Subnet**: Load balancer and ingress controller
+### Network Segmentation
+
+- **Public Subnet**: Load balancer and ingress
 - **Private Subnet**: Application pods
 - **Data Subnet**: Databases and caches (no outbound internet)
-- **Management Subnet**: Bastion host and monitoring tools
+- **Management Subnet**: Monitoring and administrative tools
 
 ---
 
-## 10. Version History
+## Version History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2024-01-15 | Platform Team | Initial architecture specification |
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0.0 | 2024-01-15 | Initial architecture overview |
 
 ---
 
