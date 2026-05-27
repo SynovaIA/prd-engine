@@ -13,6 +13,7 @@ from prd_engine.models.workflow import (
 )
 from prd_engine.models.schemas import WorkflowUpdate
 from prd_engine.observability.logging import get_logger
+from prd_engine.db.redis import acquire_lock, release_lock
 
 logger = get_logger(__name__)
 
@@ -31,7 +32,24 @@ class WorkflowService:
         idempotency_key: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Workflow:
-        """Create a new workflow and persist to database."""
+        """Create a new workflow and persist to database with idempotency protection."""
+        # If idempotency key provided, check for existing workflow
+        if idempotency_key:
+            result = await self.db.execute(
+                select(Workflow).where(
+                    Workflow.idempotency_key == idempotency_key
+                )
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                logger.info(
+                    "workflow_creation_idempotent",
+                    workflow_id=str(existing.id),
+                    idempotency_key=idempotency_key[:8],
+                )
+                return existing
+
         workflow = Workflow(
             workflow_type=workflow_type,
             status=WorkflowStatus.PENDING,
@@ -52,6 +70,43 @@ class WorkflowService:
         )
 
         return workflow
+
+    async def execute_workflow_with_lock(
+        self,
+        workflow_id: UUID,
+        execution_func,
+        *args,
+        **kwargs,
+    ):
+        """
+        Execute workflow with distributed locking to prevent concurrent execution.
+        
+        Args:
+            workflow_id: ID of the workflow to execute
+            execution_func: Async function to execute the workflow
+            *args, **kwargs: Arguments to pass to execution_func
+            
+        Returns:
+            Result of execution_func
+        """
+        lock_acquired = await acquire_lock(
+            key=f"workflow:{workflow_id}",
+            ttl_seconds=300,  # 5 minute lock for long-running workflows
+            timeout_seconds=5,
+        )
+        
+        if not lock_acquired:
+            logger.warning(
+                "workflow_execution_locked",
+                workflow_id=str(workflow_id),
+            )
+            raise Exception("Workflow is already being executed")
+        
+        try:
+            result = await execution_func(*args, **kwargs)
+            return result
+        finally:
+            await release_lock(key=f"workflow:{workflow_id}")
 
     async def update_workflow(
         self,

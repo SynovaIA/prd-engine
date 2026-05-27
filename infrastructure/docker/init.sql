@@ -125,3 +125,7 @@ COMMENT ON TABLE idempotency_keys IS 'Stores idempotency keys for request dedupl
 COMMENT ON TABLE webhooks IS 'Stores incoming webhook events';
 COMMENT ON TABLE audit_logs IS 'Audit trail for all system actions';
 COMMENT ON TABLE retry_queue IS 'Persistent queue for scheduled retries';
+
+-- Add unique constraint on workflow idempotency key
+ALTER TABLE workflows ADD CONSTRAINT uniq_workflows_idempotency_key 
+    UNIQUE (idempotency_key) WHERE idempotency_key IS NOT NULL;

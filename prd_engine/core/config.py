@@ -31,6 +31,13 @@ class Settings(BaseSettings):
 
     # Idempotency
     idempotency_ttl_hours: int = 24
+    
+    # Lock Configuration
+    lock_ttl_seconds: int = 30
+    lock_timeout_seconds: int = 10
+    
+    # Replay Protection
+    replay_protection_ttl_seconds: int = 3600
 
     # Worker Mode
     worker_mode: bool = False

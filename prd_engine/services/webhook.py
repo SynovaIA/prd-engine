@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 
 from prd_engine.models.workflow import Webhook, WebhookEventType
 from prd_engine.observability.logging import get_logger
+from prd_engine.db.redis import check_replay_signature
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,21 @@ class WebhookService:
         payload: dict,
         signature: str,
     ) -> Webhook:
-        """Store incoming webhook for processing."""
+        """Store incoming webhook for processing with replay protection."""
+        # Check for replay attacks using signature
+        is_new_signature = await check_replay_signature(
+            signature=signature,
+            ttl_seconds=3600,  # Track signatures for 1 hour
+        )
+        
+        if not is_new_signature:
+            logger.warning(
+                "webhook_replay_detected",
+                signature=signature[:16],
+                event_type=event_type.value,
+            )
+            raise ValueError("Replay attack detected: signature already processed")
+        
         webhook = Webhook(
             event_type=event_type,
             payload=payload,
