@@ -256,14 +256,14 @@ Comprehensive documentation is available for qualified evaluators including:
 Proprietary — SynovaIA. All rights reserved.
 
 For licensing inquiries and enterprise agreements, please contact:
-**enterprise@synovia.ai**
+**enterprise@synovia.site**
 
 ---
 
 ## Contact
 
 **SynovaIA Engineering**  
-Website: www.synovia.ai  
-Email: enterprise@synovia.ai
+Website: www.synovia.site  
+
 
 *Built for mission-critical operations. Engineered for enterprise success.*
