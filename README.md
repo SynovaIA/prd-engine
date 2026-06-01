@@ -1,8 +1,17 @@
-# SynovaIA PRD Engine
+# PRD Engine
 
-**Enterprise AI Execution Framework**
+![Enterprise Architecture](https://img.shields.io/badge/Enterprise-Architecture-blue)
+![Production Ready](https://img.shields.io/badge/Production-Ready-green)
+![AI Execution Framework](https://img.shields.io/badge/AI-Execution%20Framework-purple)
+![Deterministic Systems](https://img.shields.io/badge/Deterministic-Systems-orange)
 
-*Operational infrastructure for transforming business requirements into production-ready systems*
+## Deterministic AI Execution Framework
+
+Enterprise platform that transforms business requirements into production-ready systems through governed validation, architecture analysis and controlled execution.
+
+---
+
+![Enterprise AI Ecosystem](docs/assets/enterprise-ecosystem.png)
 
 ---
 
@@ -11,6 +20,43 @@
 SynovaIA PRD Engine is an enterprise-grade AI execution platform engineered for organizations requiring deterministic transformation of business requirements into validated, production-ready systems. The platform orchestrates AI-driven architecture analysis, validation pipelines, and deployment automation through a unified operational fabric designed for mission-critical environments.
 
 **Design Philosophy:** Enterprise resilience × AI-powered precision × Operational excellence
+
+---
+
+## Visual System Overview
+
+The platform is organized around four primary operational domains:
+
+* **Enterprise Infrastructure**
+* **PRD Engine**
+* **AI Workflows**
+* **Production Delivery**
+
+Together these layers create a governed AI execution environment capable of moving from requirements to production through deterministic validation and controlled execution.
+
+---
+
+## Architecture Overview
+
+![Architecture Overview](docs/assets/architecture-overview.png)
+
+The PRD Engine operates as a deterministic execution framework capable of transforming business requirements into validated production-ready architectures.
+
+---
+
+## Blueprint Generation Example
+
+![Blueprint Example](docs/assets/blueprint-example.png)
+
+Example of an enterprise-grade blueprint automatically synthesized through multi-stage validation, architecture analysis and execution planning.
+
+---
+
+## Deterministic Execution Pipeline
+
+![Execution Pipeline](docs/assets/execution-pipeline.png)
+
+9-step governed execution process that converts validated architecture into deployable infrastructure through controlled production stages.
 
 ---
 
