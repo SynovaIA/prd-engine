@@ -1,6 +1,6 @@
 # PRD Engine
 
-![Enterprise Architecture](https://img.shields.io/badge/Enterprise-Architecture-blue)
+![Enterprise Architecture]([https://img.shields.io/badge/Enterprise-Architecture-blue](https://drive.google.com/file/d/1j515ThrxT63WJzvgRytoXW7vCKpu6NWH/view?usp=drive_link))
 ![Production Ready](https://img.shields.io/badge/Production-Ready-green)
 ![AI Execution Framework](https://img.shields.io/badge/AI-Execution%20Framework-purple)
 ![Deterministic Systems](https://img.shields.io/badge/Deterministic-Systems-orange)
