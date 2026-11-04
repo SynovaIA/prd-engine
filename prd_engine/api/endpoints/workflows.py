@@ -40,7 +40,7 @@ async def create_workflow(
     """
     # Check idempotency if key provided
     if workflow_data.idempotency_key:
-        cached = await check_idempotency(db, workflow_data.idempotency_key)
+        cached = await check_idempotency(\n            db,\n            workflow_data.idempotency_key,\n            request_data=workflow_data.model_dump(mode="json"),\n        )
         if cached and cached.get("cached"):
             return WorkflowResponse(**cached["response"])
 
