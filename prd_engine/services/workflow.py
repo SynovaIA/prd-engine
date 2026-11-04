@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from fastapi import HTTPException, status
 
 from prd_engine.models.workflow import (
     Workflow,
@@ -68,6 +69,18 @@ class WorkflowService:
             return None
 
         if update_data.status:
+            allowed_transitions = {
+                WorkflowStatus.PENDING: {WorkflowStatus.RUNNING, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED},
+                WorkflowStatus.RUNNING: {WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED},
+                WorkflowStatus.FAILED: {WorkflowStatus.PENDING},
+                WorkflowStatus.COMPLETED: set(),
+                WorkflowStatus.CANCELLED: set(),
+            }
+            if update_data.status != workflow.status and update_data.status not in allowed_transitions[workflow.status]:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Invalid workflow status transition: {workflow.status.value} -> {update_data.status.value}",
+                )
             workflow.status = update_data.status
 
             if update_data.status == WorkflowStatus.RUNNING and not workflow.started_at:
