@@ -13,6 +13,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in the deployment environment}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?Set a SECRET_KEY of at least 32 characters}
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN:?Set an API_ACCESS_TOKEN of at least 32 characters}
       - API_PREFIX=/api/v1
       - MAX_RETRIES=3
       - RETRY_BACKOFF_BASE=2
@@ -47,6 +48,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in the deployment environment}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:?Set a SECRET_KEY of at least 32 characters}
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN:?Set an API_ACCESS_TOKEN of at least 32 characters}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:?Set a WEBHOOK_SECRET of at least 32 characters}
       - WORKER_MODE=true
     depends_on:
