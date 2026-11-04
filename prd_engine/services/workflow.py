@@ -17,6 +17,24 @@ from prd_engine.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+ALLOWED_STATUS_TRANSITIONS = {
+    WorkflowStatus.PENDING: {WorkflowStatus.RUNNING, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED},
+    WorkflowStatus.RUNNING: {WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED},
+    WorkflowStatus.FAILED: {WorkflowStatus.PENDING},
+    WorkflowStatus.COMPLETED: set(),
+    WorkflowStatus.CANCELLED: set(),
+}
+
+
+def validate_status_transition(current: WorkflowStatus, target: WorkflowStatus) -> None:
+    """Raise HTTP 409 when a workflow state transition is not permitted."""
+    if current != target and target not in ALLOWED_STATUS_TRANSITIONS[current]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invalid workflow status transition: {current.value} -> {target.value}",
+        )
+
+
 
 class WorkflowService:
     """Service for workflow management and execution."""
@@ -69,18 +87,7 @@ class WorkflowService:
             return None
 
         if update_data.status:
-            allowed_transitions = {
-                WorkflowStatus.PENDING: {WorkflowStatus.RUNNING, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED},
-                WorkflowStatus.RUNNING: {WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED},
-                WorkflowStatus.FAILED: {WorkflowStatus.PENDING},
-                WorkflowStatus.COMPLETED: set(),
-                WorkflowStatus.CANCELLED: set(),
-            }
-            if update_data.status != workflow.status and update_data.status not in allowed_transitions[workflow.status]:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Invalid workflow status transition: {workflow.status.value} -> {update_data.status.value}",
-                )
+            validate_status_transition(workflow.status, update_data.status)
             workflow.status = update_data.status
 
             if update_data.status == WorkflowStatus.RUNNING and not workflow.started_at:
