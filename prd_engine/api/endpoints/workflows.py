@@ -14,11 +14,11 @@ from prd_engine.models.schemas import (
 )
 from prd_engine.services.workflow import WorkflowService
 from prd_engine.observability.logging import get_logger
-from prd_engine.api.middleware.idempotency import check_idempotency
+from prd_engine.api.middleware.idempotency import check_idempotency\nfrom prd_engine.api.dependencies.auth import require_api_token
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/workflows", tags=["workflows"])
+router = APIRouter(\n    prefix="/workflows",\n    tags=["workflows"],\n    dependencies=[Depends(require_api_token)],\n)
 
 
 @router.post(
