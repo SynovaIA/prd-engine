@@ -46,7 +46,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     )
 
                 response = await call_next(request)
-                if response.status_code >= 500:
+                # Cache only successful responses; do not replay client or server errors.
+                if not 200 <= response.status_code < 300:
                     return response
 
                 body_chunks = []
