@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prd_engine.db.database import get_db
@@ -21,6 +21,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 async def ingest_webhook(
     webhook_data: WebhookIngestRequest,
     db: AsyncSession = Depends(get_db),
+    signature: str = Header(..., alias="X-Webhook-Signature"),
 ) -> dict:
     """
     Ingest a webhook event for processing.
@@ -41,7 +42,7 @@ async def ingest_webhook(
     webhook = await service.ingest_webhook(
         event_type=webhook_data.event_type,
         payload=webhook_data.payload,
-        signature=webhook_data.signature,
+        signature=signature,
     )
 
     logger.info(
