@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -47,7 +48,7 @@ async def check_idempotency(
 
     if request_data is not None and existing.request_hash is not None:
         incoming_hash = hash_request(request_data)
-        if not hashlib.compare_digest(existing.request_hash, incoming_hash):
+        if not hmac.compare_digest(existing.request_hash, incoming_hash):
             raise HTTPException(
                 status_code=409,
                 detail="Idempotency key was already used with a different request payload.",
