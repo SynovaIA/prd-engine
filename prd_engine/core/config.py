@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Security: no hard-coded fallback secrets.
     secret_key: str = Field(min_length=32)
+    api_access_token: str = Field(min_length=32)
     webhook_secret: str = Field(min_length=32)
 
     # Retry Configuration
