@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prd_engine.db.database import get_db
 from prd_engine.services.webhook import WebhookService
 from prd_engine.models.schemas import WebhookIngestRequest
-from prd_engine.observability.logging import get_logger
+from prd_engine.observability.logging import get_logger\nfrom prd_engine.api.dependencies.auth import require_api_token
 
 logger = get_logger(__name__)
 
