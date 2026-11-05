@@ -46,7 +46,9 @@ class Workflow(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
-    metadata = Column(JSON, nullable=False, default=dict)
+    # "metadata" is a reserved SQLAlchemy Declarative attribute; map the existing DB column
+    # under a safe Python attribute without changing the database schema.
+    workflow_metadata = Column("metadata", JSON, nullable=False, default=dict)
 
     __table_args__ = (
         Index("idx_workflows_status", "status"),
