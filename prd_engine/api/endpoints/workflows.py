@@ -15,10 +15,15 @@ from prd_engine.models.schemas import (
 from prd_engine.services.workflow import WorkflowService
 from prd_engine.observability.logging import get_logger
 from prd_engine.api.middleware.idempotency import check_idempotency
+from prd_engine.api.dependencies.auth import require_api_token
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/workflows", tags=["workflows"])
+router = APIRouter(
+    prefix="/workflows",
+    tags=["workflows"],
+    dependencies=[Depends(require_api_token)],
+)
 
 
 @router.post(
@@ -40,7 +45,11 @@ async def create_workflow(
     """
     # Check idempotency if key provided
     if workflow_data.idempotency_key:
-        cached = await check_idempotency(db, workflow_data.idempotency_key)
+        cached = await check_idempotency(
+            db,
+            workflow_data.idempotency_key,
+            request_data=workflow_data.model_dump(mode="json"),
+        )
         if cached and cached.get("cached"):
             return WorkflowResponse(**cached["response"])
 

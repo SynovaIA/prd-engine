@@ -1,9 +1,12 @@
 import hashlib
+import hmac
+import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import json
 
 from prd_engine.models.workflow import IdempotencyKey
 from prd_engine.core.config import get_settings
@@ -19,46 +22,44 @@ def hash_key(key: str) -> str:
 
 
 def hash_request(request_data: Dict[str, Any]) -> str:
-    """Generate hash of request payload for comparison."""
-    sorted_json = json.dumps(request_data, sort_keys=True)
+    """Generate stable hash of a JSON request payload."""
+    sorted_json = json.dumps(request_data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(sorted_json.encode()).hexdigest()
 
 
 async def check_idempotency(
     session: AsyncSession,
     idempotency_key: str,
+    request_data: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
-    """
-    Check if an idempotency key exists and is still valid.
-    Returns cached response if found, None otherwise.
-    """
+    """Return cached response; reject key reuse with a different payload."""
     key_hash = hash_key(idempotency_key)
-
     result = await session.execute(
         select(IdempotencyKey).where(IdempotencyKey.key_hash == key_hash)
     )
     existing = result.scalar_one_or_none()
 
-    if existing:
-        if existing.expires_at > datetime.utcnow():
-            logger.info(
-                "idempotency_cache_hit",
-                key=idempotency_key[:8],
-                status_code=existing.status_code,
-            )
-            return {
-                "response": existing.response,
-                "status_code": existing.status_code,
-                "cached": True,
-            }
-        else:
-            # Expired, will be cleaned up later
-            logger.info(
-                "idempotency_key_expired",
-                key=idempotency_key[:8],
+    if not existing:
+        return None
+
+    if existing.expires_at <= datetime.utcnow():
+        logger.info("idempotency_key_expired", key=idempotency_key[:8])
+        return None
+
+    if request_data is not None and existing.request_hash is not None:
+        incoming_hash = hash_request(request_data)
+        if not hmac.compare_digest(existing.request_hash, incoming_hash):
+            raise HTTPException(
+                status_code=409,
+                detail="Idempotency key was already used with a different request payload.",
             )
 
-    return None
+    logger.info("idempotency_cache_hit", key=idempotency_key[:8], status_code=existing.status_code)
+    return {
+        "response": existing.response,
+        "status_code": existing.status_code,
+        "cached": True,
+    }
 
 
 async def store_idempotency(
@@ -68,12 +69,12 @@ async def store_idempotency(
     status_code: int,
     request_data: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Store idempotency key with response for future deduplication."""
+    """Store response and request fingerprint for deduplication."""
     key_hash = hash_key(idempotency_key)
-    request_hash = hash_request(request_data) if request_data else None
+    request_hash = hash_request(request_data) if request_data is not None else None
     expires_at = datetime.utcnow() + timedelta(hours=settings.idempotency_ttl_hours)
 
-    idempotency_record = IdempotencyKey(
+    record = IdempotencyKey(
         key_hash=key_hash,
         original_key=idempotency_key,
         response=response,
@@ -81,27 +82,20 @@ async def store_idempotency(
         expires_at=expires_at,
         request_hash=request_hash,
     )
-
-    session.merge(idempotency_record)
+    await session.merge(record)
     await session.flush()
 
-    logger.info(
-        "idempotency_key_stored",
-        key=idempotency_key[:8],
-        expires_at=expires_at.isoformat(),
-    )
+    logger.info("idempotency_key_stored", key=idempotency_key[:8], expires_at=expires_at.isoformat())
 
 
 async def cleanup_expired_idempotency_keys(session: AsyncSession) -> int:
-    """Remove expired idempotency keys from database."""
+    """Remove expired idempotency records."""
     from sqlalchemy import delete
 
     result = await session.execute(
         delete(IdempotencyKey).where(IdempotencyKey.expires_at < datetime.utcnow())
     )
     deleted_count = result.rowcount or 0
-
-    if deleted_count > 0:
+    if deleted_count:
         logger.info("idempotency_cleanup", deleted_count=deleted_count)
-
     return deleted_count

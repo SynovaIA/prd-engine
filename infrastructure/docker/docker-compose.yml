@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   prd-engine-api:
     build:
@@ -12,13 +10,14 @@ services:
     environment:
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://prd_engine:secure_password@postgres:5432/prd_engine
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-min-32-chars}
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in the deployment environment}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:?Set a SECRET_KEY of at least 32 characters}
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN:?Set an API_ACCESS_TOKEN of at least 32 characters}
       - API_PREFIX=/api/v1
       - MAX_RETRIES=3
       - RETRY_BACKOFF_BASE=2
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-key}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?Set a WEBHOOK_SECRET of at least 32 characters}
       - IDEMPOTENCY_TTL_HOURS=24
     depends_on:
       postgres:
@@ -41,14 +40,16 @@ services:
       context: .
       dockerfile: infrastructure/docker/Dockerfile
     container_name: prd-engine-worker
-    restart: unless-stopped
     command: python -m uvicorn prd_engine.main:app --host 0.0.0.0 --port 8000 --workers 1
+    restart: unless-stopped
     environment:
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://prd_engine:secure_password@postgres:5432/prd_engine
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-min-32-chars}
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in the deployment environment}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:?Set a SECRET_KEY of at least 32 characters}
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN:?Set an API_ACCESS_TOKEN of at least 32 characters}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?Set a WEBHOOK_SECRET of at least 32 characters}
       - WORKER_MODE=true
     depends_on:
       postgres:
@@ -63,16 +64,16 @@ services:
     container_name: prd-engine-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=prd_engine
-      - POSTGRES_PASSWORD=secure_password
-      - POSTGRES_DB=prd_engine
+      - POSTGRES_USER=${POSTGRES_USER:-prd_engine}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-prd_engine}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - prd-engine-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U prd_engine -d prd_engine"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prd_engine} -d ${POSTGRES_DB:-prd_engine}"]
       interval: 10s
       timeout: 5s
       retries: 5

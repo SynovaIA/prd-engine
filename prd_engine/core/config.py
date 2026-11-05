@@ -1,29 +1,29 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration with environment variable support."""
+    """Application configuration loaded from environment variables or .env."""
 
     # Application
     app_name: str = "PRD Engine"
     version: str = "1.0.0"
-    environment: str = "production"
+    environment: str = "development"
     api_prefix: str = "/api/v1"
 
     # Logging
     log_level: str = "INFO"
 
-    # Database
-    database_url: str = "postgresql://prd_engine:secure_password@localhost:5432/prd_engine"
-
-    # Redis
+    # Database and Redis: deployment-specific values must be supplied.
+    database_url: str
     redis_url: str = "redis://localhost:6379/0"
 
-    # Security
-    secret_key: str
-    webhook_secret: str = "webhook-secret-key"
+    # Security: no hard-coded fallback secrets.
+    secret_key: str = Field(min_length=32)
+    api_access_token: str = Field(min_length=32)
+    webhook_secret: str = Field(min_length=32)
 
     # Retry Configuration
     max_retries: int = 3
@@ -35,9 +35,10 @@ class Settings(BaseSettings):
     # Worker Mode
     worker_mode: bool = False
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+    )
 
 
 @lru_cache()

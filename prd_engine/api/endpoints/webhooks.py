@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prd_engine.db.database import get_db
 from prd_engine.services.webhook import WebhookService
 from prd_engine.models.schemas import WebhookIngestRequest
 from prd_engine.observability.logging import get_logger
+from prd_engine.api.dependencies.auth import require_api_token
 
 logger = get_logger(__name__)
 
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 async def ingest_webhook(
     webhook_data: WebhookIngestRequest,
     db: AsyncSession = Depends(get_db),
+    signature: str = Header(..., alias="X-Webhook-Signature"),
 ) -> dict:
     """
     Ingest a webhook event for processing.
@@ -40,7 +42,7 @@ async def ingest_webhook(
     webhook = await service.ingest_webhook(
         event_type=webhook_data.event_type,
         payload=webhook_data.payload,
-        signature=webhook_data.signature,
+        signature=signature,
     )
 
     logger.info(
@@ -66,6 +68,7 @@ async def list_webhooks(
     page_size: int = 20,
     processed: bool = None,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_api_token),
 ) -> dict:
     """
     List webhook events with pagination.
