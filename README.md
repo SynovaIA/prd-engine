@@ -294,7 +294,7 @@ For licensing inquiries and enterprise agreements, please contact:
 ## Contact
 
 **SynovaIA Engineering**  
-Website: www.synovia.site  
+Website: www.synovaia.site  
 
 
 *Built for mission-critical operations. Engineered for enterprise success.*
